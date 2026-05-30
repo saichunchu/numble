@@ -1,24 +1,21 @@
 import '../core/constants.dart';
 
 List<TileState> evaluateGuess(String guess, String target) {
-  List<TileState> result =
-      List.filled(wordLength, TileState.absent);
+  final length = target.length;
+  final result = List.filled(length, TileState.absent);
+  final used = List.filled(length, false);
 
-  List<bool> used = List.filled(wordLength, false);
-
-  // Step 1: correct positions
-  for (int i = 0; i < wordLength; i++) {
+  for (int i = 0; i < length; i++) {
     if (guess[i] == target[i]) {
       result[i] = TileState.correct;
       used[i] = true;
     }
   }
 
-  // Step 2: present (wrong position)
-  for (int i = 0; i < wordLength; i++) {
+  for (int i = 0; i < length; i++) {
     if (result[i] == TileState.correct) continue;
 
-    for (int j = 0; j < wordLength; j++) {
+    for (int j = 0; j < length; j++) {
       if (!used[j] && guess[i] == target[j]) {
         result[i] = TileState.present;
         used[j] = true;

@@ -1,6 +1,6 @@
 import 'dart:math';
 
-String generateTarget() {
+String generateTarget(int length) {
   final random = Random();
-  return List.generate(5, (_) => random.nextInt(10)).join();
+  return List.generate(length, (_) => random.nextInt(10)).join();
 }

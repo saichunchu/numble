@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../core/constants.dart';
 import '../core/game_layout.dart';
+import '../core/app_theme.dart';
+import '../core/app_motion.dart';
 
 enum KeyButtonVariant { digit, delete, submit }
 
@@ -27,123 +29,133 @@ class KeyButton extends StatefulWidget {
   State<KeyButton> createState() => _KeyButtonState();
 }
 
-class _KeyButtonState extends State<KeyButton> {
-  bool _pressed = false;
+class _KeyButtonState extends State<KeyButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+  late Animation<double> _pressScale;
 
-  Color _stateColor(TileState? state) {
-    switch (state) {
-      case TileState.correct:
-        return const Color(0xFF6AAA64);
-      case TileState.present:
-        return const Color(0xFFC9B458);
-      case TileState.absent:
-        return const Color(0xFF787C7E);
-      default:
-        return const Color(0xFF565758);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: AppMotion.instant,
+    );
+    _pressScale = Tween<double>(begin: 1, end: 0.94).animate(
+      CurvedAnimation(parent: _pressController, curve: AppMotion.standard),
+    );
   }
 
-  Color _baseColor(TileState? state) {
-    switch (widget.variant) {
-      case KeyButtonVariant.submit:
-        return const Color(0xFF538D4E);
-      case KeyButtonVariant.delete:
-        return const Color(0xFF3A3A3C);
-      case KeyButtonVariant.digit:
-        return _stateColor(state);
-    }
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
   }
 
-  Color _shadowColor(TileState? state) {
+  ({Color fill, Color shadow}) _colors(TileState? state) {
     switch (widget.variant) {
       case KeyButtonVariant.submit:
-        return const Color(0xFF3D6B39);
+        return (fill: AppColors.emeraldDark, shadow: const Color(0xFF065F46));
       case KeyButtonVariant.delete:
-        return const Color(0xFF242426);
+        return (fill: AppColors.keyAction, shadow: AppColors.keyActionShadow);
       case KeyButtonVariant.digit:
-        if (state != null) {
-          switch (state) {
-            case TileState.correct:
-              return const Color(0xFF4A8F47);
-            case TileState.present:
-              return const Color(0xFF9A8A3F);
-            case TileState.absent:
-              return const Color(0xFF5A5E60);
-            case TileState.empty:
-              return const Color(0xFF424242);
-          }
+        switch (state) {
+          case TileState.correct:
+            return (fill: AppColors.correct, shadow: AppColors.correctDark);
+          case TileState.present:
+            return (fill: AppColors.present, shadow: AppColors.presentDark);
+          case TileState.absent:
+            return (fill: AppColors.absent, shadow: AppColors.absentDark);
+          default:
+            return (
+              fill: AppColors.keyDefault,
+              shadow: AppColors.keyDefaultShadow,
+            );
         }
-        return const Color(0xFF424242);
     }
   }
 
-  void _handleTapDown(TapDownDetails _) => setState(() => _pressed = true);
-
-  void _handleTapUp(TapUpDetails _) => setState(() => _pressed = false);
-
-  void _handleTapCancel() => setState(() => _pressed = false);
+  void _handleTapDown(TapDownDetails _) => _pressController.forward();
+  void _handleTapUp(TapUpDetails _) => _pressController.reverse();
+  void _handleTapCancel() => _pressController.reverse();
 
   void _handleTap() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     widget.onTap();
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<GameProvider>(context);
-    final state =
-        widget.variant == KeyButtonVariant.digit && widget.label != null
-            ? provider.keyStates[widget.label!]
-            : null;
     final layout = GameLayout.of(context);
-    final borderRadius = (layout.keyHeight * 0.14).clamp(5.0, 9.0);
-    final baseColor = _baseColor(state);
-    final shadowColor = _shadowColor(state);
+    final borderRadius = (layout.keyHeight * 0.16).clamp(6.0, 10.0);
 
     return Expanded(
       flex: widget.flex,
       child: Padding(
         padding: EdgeInsets.all(layout.keyPadding),
-        child: GestureDetector(
-          onTapDown: _handleTapDown,
-          onTapUp: _handleTapUp,
-          onTapCancel: _handleTapCancel,
-          onTap: _handleTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 80),
-            curve: Curves.easeOut,
-            height: layout.keyHeight,
-            transform: Matrix4.translationValues(0, _pressed ? 2 : 0, 0),
-            decoration: BoxDecoration(
-              color: baseColor,
-              borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: _pressed
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: shadowColor,
-                        offset: const Offset(0, 3),
-                        blurRadius: 0,
-                      ),
-                    ],
-            ),
-            child: Center(
-              child: widget.icon != null
-                  ? Icon(
-                      widget.icon,
-                      color: Colors.white,
-                      size: layout.keyFontSize * 1.35,
-                    )
-                  : Text(
-                      widget.label!,
-                      style: TextStyle(
-                        fontSize: layout.keyFontSize,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-            ),
+        child: widget.variant == KeyButtonVariant.digit && widget.label != null
+            ? Selector<GameProvider, TileState?>(
+                selector: (_, p) => p.keyStates[widget.label!],
+                builder: (context, state, _) =>
+                    _buildKey(layout, borderRadius, state),
+              )
+            : _buildKey(layout, borderRadius, null),
+      ),
+    );
+  }
+
+  Widget _buildKey(
+    GameLayoutData layout,
+    double borderRadius,
+    TileState? state,
+  ) {
+    final colors = _colors(state);
+
+    return GestureDetector(
+      onTapDown: _handleTapDown,
+      onTapUp: _handleTapUp,
+      onTapCancel: _handleTapCancel,
+      onTap: _handleTap,
+      child: ScaleTransition(
+        scale: _pressScale,
+        child: AnimatedContainer(
+          duration: AppMotion.medium,
+          curve: AppMotion.standard,
+          height: layout.keyHeight,
+          decoration: BoxDecoration(
+            gradient: widget.variant == KeyButtonVariant.submit
+                ? AppTheme.primaryGradient
+                : null,
+            color:
+                widget.variant == KeyButtonVariant.submit ? null : colors.fill,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: widget.variant == KeyButtonVariant.digit && state == null
+                ? Border.all(
+                    color: AppColors.border.withValues(alpha: 0.5),
+                  )
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: colors.shadow.withValues(
+                  alpha: _pressController.isAnimating ? 0.2 : 0.9,
+                ),
+                offset: Offset(0, _pressController.value > 0 ? 1 : 3),
+                blurRadius:
+                    widget.variant == KeyButtonVariant.submit ? 6 : 0,
+              ),
+            ],
+          ),
+          child: Center(
+            child: widget.icon != null
+                ? Icon(
+                    widget.icon,
+                    color: AppColors.textPrimary,
+                    size: layout.keyFontSize * 1.3,
+                  )
+                : Text(
+                    widget.label!,
+                    style: AppTheme.keyLabel(layout.keyFontSize),
+                  ),
           ),
         ),
       ),

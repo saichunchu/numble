@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants.dart';
+import '../core/difficulty.dart';
 import '../core/utils.dart';
 import '../models/guess_model.dart';
 import '../services/game_service.dart';
 import '../services/storage_service.dart';
 
 class GameProvider extends ChangeNotifier {
+  GameDifficulty _difficulty = GameDifficulty.medium;
+
   late String target;
   List<Guess> guesses = [];
   String currentInput = "";
@@ -22,14 +25,26 @@ class GameProvider extends ChangeNotifier {
     loadStats();
   }
 
-  bool get isWon =>
-      guesses.isNotEmpty && guesses.last.value == target;
+  GameDifficulty get difficulty => _difficulty;
 
-  bool get isGameOver =>
-      isWon || guesses.length >= maxAttempts;
+  DifficultyConfig get config => DifficultyConfig.forLevel(_difficulty);
+
+  int get wordLength => config.wordLength;
+
+  int get maxAttempts => config.maxAttempts;
+
+  bool get isWon => guesses.isNotEmpty && guesses.last.value == target;
+
+  bool get isGameOver => isWon || guesses.length >= maxAttempts;
+
+  void setDifficulty(GameDifficulty level) {
+    if (_difficulty == level) return;
+    _difficulty = level;
+    startGame();
+  }
 
   void startGame() {
-    target = generateTarget();
+    target = generateTarget(wordLength);
     guesses.clear();
     currentInput = "";
     keyStates.clear();
@@ -47,8 +62,7 @@ class GameProvider extends ChangeNotifier {
   void removeDigit() {
     if (isGameOver) return;
     if (currentInput.isNotEmpty) {
-      currentInput =
-          currentInput.substring(0, currentInput.length - 1);
+      currentInput = currentInput.substring(0, currentInput.length - 1);
       notifyListeners();
     }
   }
@@ -60,7 +74,7 @@ class GameProvider extends ChangeNotifier {
     final states = evaluateGuess(currentInput, target);
 
     for (int i = 0; i < wordLength; i++) {
-      String digit = currentInput[i];
+      final digit = currentInput[i];
 
       if (!keyStates.containsKey(digit) ||
           states[i] == TileState.correct ||
@@ -101,7 +115,6 @@ class GameProvider extends ChangeNotifier {
       streak = 0;
     }
 
-    await StorageService.saveStats(
-        gamesPlayed, wins, streak, maxStreak);
+    await StorageService.saveStats(gamesPlayed, wins, streak, maxStreak);
   }
 }
