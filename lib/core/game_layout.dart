@@ -7,6 +7,8 @@ class GameLayoutData {
   final double tileMargin;
   final double keyHeight;
   final double keyFontSize;
+  final double keyPadding;
+  final double keyboardHeight;
   final double maxContentWidth;
   final double gridHeight;
   final double subtitleFontSize;
@@ -20,6 +22,8 @@ class GameLayoutData {
     required this.tileMargin,
     required this.keyHeight,
     required this.keyFontSize,
+    required this.keyPadding,
+    required this.keyboardHeight,
     required this.maxContentWidth,
     required this.gridHeight,
     required this.subtitleFontSize,
@@ -33,30 +37,42 @@ class GameLayoutData {
     final height = constraints.maxHeight.isFinite ? constraints.maxHeight : 700;
 
     final isWide = width > 600;
+    final isCompact = height < 560;
     final maxContentWidth = isWide ? 480.0 : width;
 
     final tileMargin = isWide ? 4.0 : 3.0;
     const keyRows = 4;
-    const keyPadding = 8.0;
-
-    final keyHeight = (maxContentWidth / 3 * 0.38).clamp(42.0, 58.0);
-    final keyboardHeight = keyRows * (keyHeight + keyPadding) + 16;
-    const headerHeight = 72.0;
-    const resultHeight = 36.0;
-    const verticalSpacing = 56.0;
-
-    final gridAreaHeight =
-        height - keyboardHeight - headerHeight - resultHeight - verticalSpacing;
+    final keyPadding = isCompact ? 3.0 : (isWide ? 5.0 : 4.0);
 
     final tileFromWidth =
         (maxContentWidth - tileMargin * 2 * wordLength) / wordLength;
+
+    final estimatedKeyHeight =
+        (tileFromWidth * 0.68).clamp(isCompact ? 30.0 : 34.0, isWide ? 46.0 : 50.0);
+    final estimatedKeyboardHeight =
+        keyRows * (estimatedKeyHeight + keyPadding * 2) + 28;
+
+    const headerHeight = 72.0;
+    const resultHeight = 36.0;
+    final verticalSpacing = isCompact ? 40.0 : 56.0;
+
+    final gridAreaHeight = height -
+        estimatedKeyboardHeight -
+        headerHeight -
+        resultHeight -
+        verticalSpacing;
+
     final tileFromHeight =
         (gridAreaHeight - tileMargin * 2 * maxAttempts) / maxAttempts;
 
     final tileSize =
         (tileFromWidth < tileFromHeight ? tileFromWidth : tileFromHeight)
-            .clamp(32.0, 64.0);
+            .clamp(isCompact ? 28.0 : 32.0, 64.0);
 
+    final keyHeight =
+        (tileSize * 0.68).clamp(isCompact ? 30.0 : 34.0, isWide ? 46.0 : 50.0);
+    final keyboardHeight =
+        keyRows * (keyHeight + keyPadding * 2) + 28; // includes panel padding
     final gridHeight = maxAttempts * (tileSize + tileMargin * 2);
 
     final totalContentHeight =
@@ -67,7 +83,9 @@ class GameLayoutData {
       tileFontSize: (tileSize * 0.42).clamp(16.0, 28.0),
       tileMargin: tileMargin,
       keyHeight: keyHeight,
-      keyFontSize: (keyHeight * 0.38).clamp(14.0, 22.0),
+      keyFontSize: (keyHeight * 0.42).clamp(13.0, 20.0),
+      keyPadding: keyPadding,
+      keyboardHeight: keyboardHeight,
       maxContentWidth: maxContentWidth,
       gridHeight: gridHeight,
       subtitleFontSize: isWide ? 15.0 : 14.0,
